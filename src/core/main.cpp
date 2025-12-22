@@ -75,6 +75,7 @@
 #include "custompipes.h"
 #include "screendroplets.h"
 #include "VarConsole.h"
+#include "Multiplayer.h"
 #ifdef USE_OUR_VERSIONING
 #include "GitSHA1.h"
 #endif
@@ -1533,6 +1534,8 @@ Idle(void *arg)
 {
 	CTimer::Update();
 
+	MultiplayerUpdate();
+
 	tbInit();
 
 	CSprite2d::InitPerFrame();
@@ -1738,6 +1741,13 @@ AppEventHandler(RsEvent event, void *param)
 {
 	switch( event )
 	{
+		case rsPREINITCOMMANDLINE:
+		{
+			if (MultiplayerHandlePreInitCommandLine((const char*)param))
+				return rsEVENTPROCESSED;
+			return rsEVENTNOTPROCESSED;
+		}
+
 		case rsINITIALIZE:
 		{
 			CGame::InitialiseOnceBeforeRW();

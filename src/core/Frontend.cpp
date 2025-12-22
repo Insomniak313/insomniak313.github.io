@@ -35,6 +35,7 @@
 #include "FileLoader.h"
 #include "User.h"
 #include "sampman.h"
+#include "Multiplayer.h"
 
 // Similar story to Hud.cpp:
 // Game has colors inlined in code.
@@ -4724,6 +4725,28 @@ CMenuManager::ProcessUserInput(uint8 goDown, uint8 goUp, uint8 optionSelected, u
 			case MENUACTION_YES:
 			case MENUACTION_NO:
 				SwitchToNewScreen(aScreens[m_nCurrScreen].m_aEntries[m_nCurrOption].m_TargetMenu);
+				break;
+			case MENUACTION_MULTIPLAYER_HOST:
+				gMultiplayerConfig.mode = MP_MODE_HOST;
+				gMultiplayerConfig.connectIp[0] = '\0';
+				gMultiplayerConfig.connectWsUrl[0] = '\0';
+				DoSettingsBeforeStartingAGame();
+				break;
+			case MENUACTION_MULTIPLAYER_JOIN:
+				gMultiplayerConfig.mode = MP_MODE_CLIENT;
+#ifdef __EMSCRIPTEN__
+				// Browser client: use default ws(s)://<host>/ws unless overridden elsewhere.
+				gMultiplayerConfig.connectIp[0] = '\0';
+				gMultiplayerConfig.connectWsUrl[0] = '\0';
+#else
+				// Native client: default to localhost if no CLI/config was provided.
+				if (gMultiplayerConfig.connectIp[0] == '\0') {
+					strncpy(gMultiplayerConfig.connectIp, "127.0.0.1", sizeof(gMultiplayerConfig.connectIp) - 1);
+					gMultiplayerConfig.connectIp[sizeof(gMultiplayerConfig.connectIp) - 1] = '\0';
+				}
+				gMultiplayerConfig.connectWsUrl[0] = '\0';
+#endif
+				DoSettingsBeforeStartingAGame();
 				break;
 			case MENUACTION_RADIO:
 				ChangeRadioStation(1);

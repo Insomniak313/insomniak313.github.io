@@ -27,6 +27,15 @@ We cannot build for PS2 or Xbox yet. If you're interested in doing so, get in to
   
 - Extract the downloaded zip over your GTA VC directory and run reVC. The zip includes the binary, updated and additional gamefiles and in case of OpenAL the required dlls.
 
+## WASM + Multiplayer (server + stats page)
+
+This repository includes a small Node.js server for **WASM distribution** (HTTP static hosting) and **browser-compatible multiplayer** (WebSocket).
+
+- **Docs**: `server/README.md`
+- **Multiplayer overview**: `MULTIPLAYER.md`
+- **Stats + launch page**: `server/public/stats.html` (served as `/stats.html`)
+  - Put your WASM build into `server/public/game/` (e.g. `index.html`, `.js`, `.wasm`, assets) then open `http://localhost:8080/stats.html`
+
 ## Screenshots
 
 ![screen_ 1613087332](https://user-images.githubusercontent.com/1521437/107714111-f84f3200-6ccc-11eb-902e-d757481d579a.png)
