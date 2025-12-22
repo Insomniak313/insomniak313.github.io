@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>reVC — Stats (WASM + Multiplayer)</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: #0b1220;
+        color: #e5e7eb;
+      }
+      a { color: #93c5fd; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; }
+      header {
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: rgba(0,0,0,0.25);
+        position: sticky;
+        top: 0;
+        backdrop-filter: blur(8px);
+      }
+      header .title { font-weight: 700; }
+      main {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+      @media (max-width: 980px) {
+        main { grid-template-columns: 1fr; }
+      }
+      .card {
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgba(255,255,255,0.03);
+      }
+      .kvs { display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items: center; }
+      .muted { color: rgba(229,231,235,0.70); font-size: 13px; line-height: 1.4; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+      button, input {
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
+        color: #e5e7eb;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      button { cursor: pointer; }
+      button:hover { background: rgba(255,255,255,0.09); }
+      input { flex: 1; min-width: 220px; }
+      .pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
+      }
+      .ok { color: #86efac; }
+      .bad { color: #fca5a5; }
+      iframe {
+        width: 100%;
+        height: calc(100vh - 140px);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        background: rgba(0,0,0,0.35);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">reVC — Statistiques (serveur WASM + multijoueur)</div>
+      <div class="muted">
+        Cette page affiche l’état du serveur (<code>/healthz</code>) et permet de lancer le jeu WASM embarqué.
+      </div>
+    </header>
+
+    <main>
+      <section class="card">
+        <div class="kvs">
+          <div>Statut</div>
+          <div id="status" class="pill">…</div>
+
+          <div>Joueurs connectés</div>
+          <div><code id="players">-</code></div>
+
+          <div>Cellules actives</div>
+          <div><code id="cells">-</code></div>
+
+          <div>Tick</div>
+          <div><code id="tickMs">-</code> ms</div>
+
+          <div>Taille cellule</div>
+          <div><code id="cellSize">-</code></div>
+
+          <div>WS</div>
+          <div><code id="wsUrl">-</code></div>
+        </div>
+
+        <div class="row">
+          <input id="gameUrl" placeholder="/game/" />
+          <button id="openTab">Ouvrir le jeu (nouvel onglet)</button>
+          <button id="embed">Intégrer ici</button>
+        </div>
+
+        <p class="muted" style="margin-top: 12px;">
+          Par défaut, le jeu est attendu dans <code>/game/</code> (ex: <code>server/public/game/index.html</code> + <code>.js</code>/<code>.wasm</code>).
+          Tu peux aussi passer <code>?game=/chemin/</code> dans l’URL.
+        </p>
+      </section>
+
+      <section class="card">
+        <iframe id="gameFrame" title="reVC WASM" src="about:blank"></iframe>
+      </section>
+    </main>
+
+    <script>
+      const elStatus = document.getElementById("status");
+      const elPlayers = document.getElementById("players");
+      const elCells = document.getElementById("cells");
+      const elTick = document.getElementById("tickMs");
+      const elCellSize = document.getElementById("cellSize");
+      const elWsUrl = document.getElementById("wsUrl");
+      const elGameUrl = document.getElementById("gameUrl");
+      const elFrame = document.getElementById("gameFrame");
+
+      const qs = new URLSearchParams(window.location.search);
+      const initialGameUrl = qs.get("game") ?? "/game/";
+      elGameUrl.value = initialGameUrl;
+
+      function computeWsUrl() {
+        const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+        return `${proto}//${window.location.host}/ws`;
+      }
+
+      elWsUrl.textContent = computeWsUrl();
+
+      function setStatus(ok, text) {
+        elStatus.textContent = text;
+        elStatus.classList.toggle("ok", ok);
+        elStatus.classList.toggle("bad", !ok);
+      }
+
+      async function refresh() {
+        try {
+          const res = await fetch("/healthz", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          setStatus(true, "OK");
+          elPlayers.textContent = String(json.players ?? "-");
+          elCells.textContent = String(json.cells ?? "-");
+          elTick.textContent = String(json.tickMs ?? "-");
+          elCellSize.textContent = String(json.cellSize ?? "-");
+        } catch (e) {
+          setStatus(false, "OFFLINE");
+        }
+      }
+
+      function normalizeGameUrl(url) {
+        const u = (url || "").trim();
+        if (!u) return "/game/";
+        return u.endsWith("/") ? u : `${u}/`;
+      }
+
+      document.getElementById("openTab").addEventListener("click", () => {
+        const gameUrl = normalizeGameUrl(elGameUrl.value);
+        window.open(gameUrl, "_blank", "noopener,noreferrer");
+      });
+
+      document.getElementById("embed").addEventListener("click", () => {
+        const gameUrl = normalizeGameUrl(elGameUrl.value);
+        elFrame.src = gameUrl;
+      });
+
+      refresh();
+      setInterval(refresh, 1000);
+    </script>
+  </body>
+</html>
+

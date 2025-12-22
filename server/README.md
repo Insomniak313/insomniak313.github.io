@@ -17,6 +17,10 @@ Par défaut :
 - **WebSocket**: `/ws`
 - **Static**: `server/public/` (copie ici ton build wasm : `index.html`, `.js`, `.wasm`, assets, etc.)
 
+Pages utiles :
+- `GET /healthz` : métriques serveur (joueurs, cellules, tick, etc.)
+- `GET /stats.html` : page “statistiques + lancement WASM” (le jeu est attendu par défaut dans `/game/`)
+
 Variables d’environnement utiles :
 - `PORT` (défaut `8080`)
 - `WS_PATH` (défaut `/ws`)

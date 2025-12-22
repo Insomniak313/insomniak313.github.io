@@ -2,7 +2,14 @@
 
 #include "Multiplayer.h"
 #include "NetEndian.h"
+#ifndef __EMSCRIPTEN__
 #include "UdpSocket.h"
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/websocket.h>
+#endif
 
 #include "Timer.h"
 #include "World.h"
@@ -22,7 +29,99 @@ enum eNetMsgType
 	NETMSG_WELCOME = 2,
 	NETMSG_STATE = 3,
 	NETMSG_SNAPSHOT = 4,
+	NETMSG_LEAVE = 5,
 };
+
+#ifdef __EMSCRIPTEN__
+static EMSCRIPTEN_WEBSOCKET_T gWs;
+static bool gWsOpen;
+struct WsMsg
+{
+	uint8 *bytes;
+	uint32 size;
+};
+static WsMsg gWsInbox[64];
+static uint32 gWsInboxHead;
+static uint32 gWsInboxTail;
+
+static bool
+WsInboxPush(const uint8 *data, uint32 size)
+{
+	uint32 next = (gWsInboxHead + 1) % (uint32)(sizeof(gWsInbox) / sizeof(gWsInbox[0]));
+	if (next == gWsInboxTail)
+		return false;
+
+	uint8 *copy = new uint8[size];
+	memcpy(copy, data, size);
+	gWsInbox[gWsInboxHead].bytes = copy;
+	gWsInbox[gWsInboxHead].size = size;
+	gWsInboxHead = next;
+	return true;
+}
+
+static bool
+WsInboxPop(uint8 *&outBytes, uint32 &outSize)
+{
+	if (gWsInboxTail == gWsInboxHead)
+		return false;
+	WsMsg &m = gWsInbox[gWsInboxTail];
+	outBytes = m.bytes;
+	outSize = m.size;
+	gWsInboxTail = (gWsInboxTail + 1) % (uint32)(sizeof(gWsInbox) / sizeof(gWsInbox[0]));
+	return true;
+}
+
+static void
+WsInboxClear()
+{
+	uint8 *b;
+	uint32 s;
+	while (WsInboxPop(b, s)) {
+		delete[] b;
+	}
+}
+
+static char*
+GetDefaultWsUrl()
+{
+	// Build ws(s)://<host>/ws using current location.
+	return emscripten_run_script_string(
+		"(function(){"
+		"var l=window.location;"
+		"var proto=(l.protocol==='https:')?'wss:':'ws:';"
+		"return proto+'//'+l.host+'/ws';"
+		"})()");
+}
+
+static EM_BOOL
+OnWsOpen(int, const EmscriptenWebSocketOpenEvent*, void*)
+{
+	gWsOpen = true;
+	return EM_TRUE;
+}
+
+static EM_BOOL
+OnWsClose(int, const EmscriptenWebSocketCloseEvent*, void*)
+{
+	gWsOpen = false;
+	return EM_TRUE;
+}
+
+static EM_BOOL
+OnWsError(int, const EmscriptenWebSocketErrorEvent*, void*)
+{
+	gWsOpen = false;
+	return EM_TRUE;
+}
+
+static EM_BOOL
+OnWsMessage(int, const EmscriptenWebSocketMessageEvent *e, void*)
+{
+	if (!e->isText && e->data && e->numBytes > 0)
+		WsInboxPush((const uint8*)e->data, (uint32)e->numBytes);
+	return EM_TRUE;
+}
+#endif
 
 static uint32
 ReadU32(const uint8 *&p, const uint8 *end)
@@ -160,6 +259,7 @@ UpdateRemotePed(uint32 id, const CVector &pos, float heading, uint32 nowMs)
 	p->UpdateRwFrame();
 }
 
+#ifndef __EMSCRIPTEN__
 struct ClientSlot
 {
 	bool active;
@@ -173,13 +273,11 @@ struct ClientSlot
 
 static const int32 MAX_CLIENTS = 8;
 static ClientSlot gClients[MAX_CLIENTS];
+#endif
 
-static CUdpSocket gSocket;
 static bool gStarted;
 static bool gIsHost;
 static uint32 gLocalId;
-static uint32 gClientToken;
-static NetAddr gServerAddr;
 static uint32 gSeq;
 static uint32 gNextHelloMs;
 static uint32 gNextStateMs;
@@ -187,23 +285,43 @@ static uint32 gNextSnapshotMs;
 static uint32 gNextClientId;
 static bool gAwaitPortValue;
 static bool gAwaitConnectValue;
+static bool gAwaitConnectWsValue;
+
+#ifndef __EMSCRIPTEN__
+static CUdpSocket gSocket;
+static uint32 gClientToken;
+static NetAddr gServerAddr;
+#endif
 
 static void
 ResetMultiplayerRuntime()
 {
+#ifdef __EMSCRIPTEN__
+	WsInboxClear();
+	if (gWs) {
+		emscripten_websocket_close(gWs, 1000, "reset");
+		gWs = 0;
+	}
+	gWsOpen = false;
+#else
 	gSocket.Close();
+#endif
 	gStarted = false;
 	gIsHost = false;
 	gLocalId = 0;
+#ifndef __EMSCRIPTEN__
 	gClientToken = 0;
 	memset(&gServerAddr, 0, sizeof(gServerAddr));
+#endif
 	gSeq = 1;
 	gNextHelloMs = 0;
 	gNextStateMs = 0;
 	gNextSnapshotMs = 0;
 	gNextClientId = 1;
 
+#ifndef __EMSCRIPTEN__
 	memset(gClients, 0, sizeof(gClients));
+#endif
 	for (int32 i = 0; i < MAX_REMOTE_PLAYERS; i++) {
 		gRemotePlayers[i].id = 0;
 		gRemotePlayers[i].ped = nil;
@@ -263,6 +381,7 @@ ParseHeader(const uint8 *data, int32 size, uint8 &outType, uint32 &outSenderId, 
 	return true;
 }
 
+#ifndef __EMSCRIPTEN__
 static void
 SendHello(uint32 nowMs)
 {
@@ -350,6 +469,9 @@ BroadcastSnapshot(uint32 nowMs, const CVector &hostPos, float hostHeading)
 	gNextSnapshotMs = nowMs + 50;
 }
 
+#endif // !__EMSCRIPTEN__
+
+#ifndef __EMSCRIPTEN__
 static int32
 FindClientByAddr(const NetAddr &addr)
 {
@@ -424,15 +546,23 @@ HostHandleState(uint32 senderId, uint32 token, const CVector &pos, float heading
 	// Host can also visualize clients.
 	UpdateRemotePed(senderId, pos, heading, nowMs);
 }
+#endif // !__EMSCRIPTEN__
 
 static void
 ClientHandleWelcome(uint32 token, uint32 assignedId)
 {
+#ifndef __EMSCRIPTEN__
 	if (gLocalId != 0)
 		return;
 	if (token != gClientToken)
 		return;
 	gLocalId = assignedId;
+#else
+	(void)token;
+	if (gLocalId != 0)
+		return;
+	gLocalId = assignedId;
+#endif
 }
 
 static void
@@ -455,6 +585,33 @@ HandleSnapshot(const uint8 *payload, const uint8 *end, uint32 nowMs)
 static void
 PumpNetwork(uint32 nowMs)
 {
+#ifdef __EMSCRIPTEN__
+	for (;;) {
+		uint8 *bytes;
+		uint32 size;
+		if (!WsInboxPop(bytes, size))
+			break;
+
+		uint8 type;
+		uint32 senderId;
+		const uint8 *payload;
+		const uint8 *end;
+		if (ParseHeader(bytes, (int32)size, type, senderId, payload, end)) {
+			if (type == NETMSG_WELCOME) {
+				// WS server sends only assignedId (u32) without token.
+				uint32 assignedId = ReadU32(payload, end);
+				ClientHandleWelcome(0, assignedId);
+			} else if (type == NETMSG_SNAPSHOT) {
+				HandleSnapshot(payload, end, nowMs);
+			} else if (type == NETMSG_LEAVE) {
+				// best-effort: we don't hard-delete peds here, just stop updating.
+				(void)ReadU32(payload, end);
+			}
+		}
+
+		delete[] bytes;
+	}
+#else
 	uint8 buf[1200];
 	for (;;) {
 		NetAddr from;
@@ -491,6 +648,7 @@ PumpNetwork(uint32 nowMs)
 			}
 		}
 	}
+#endif
 }
 
 static void
@@ -508,15 +666,54 @@ EnsureStartedIfNeeded()
 	ResetMultiplayerRuntime();
 
 	if (gMultiplayerConfig.mode == MP_MODE_HOST) {
+#ifdef __EMSCRIPTEN__
+		// Browser build can't be host for now.
+		return;
+#else
 		if (!gSocket.Open(gMultiplayerConfig.port))
 			return;
 		gIsHost = true;
 		gLocalId = 0;
 		gStarted = true;
 		return;
+#endif
 	}
 
 	if (gMultiplayerConfig.mode == MP_MODE_CLIENT) {
+#ifdef __EMSCRIPTEN__
+		if (!emscripten_websocket_is_supported())
+			return;
+
+		EmscriptenWebSocketCreateAttributes attr;
+		emscripten_websocket_init_create_attributes(&attr);
+		attr.protocols = nil;
+		attr.createOnMainThread = 1;
+
+		char *url = nil;
+		if (gMultiplayerConfig.connectWsUrl[0] != '\0') {
+			attr.url = gMultiplayerConfig.connectWsUrl;
+		} else {
+			url = GetDefaultWsUrl();
+			attr.url = url;
+		}
+
+		gWs = emscripten_websocket_new(&attr);
+		if (url)
+			free(url);
+		if (!gWs)
+			return;
+
+		emscripten_websocket_set_onopen_callback(gWs, nil, OnWsOpen);
+		emscripten_websocket_set_onclose_callback(gWs, nil, OnWsClose);
+		emscripten_websocket_set_onerror_callback(gWs, nil, OnWsError);
+		emscripten_websocket_set_onmessage_callback(gWs, nil, OnWsMessage);
+
+		gIsHost = false;
+		gLocalId = 0;
+		gNextStateMs = 0;
+		gStarted = true;
+		return;
+#else
 		if (gMultiplayerConfig.connectIp[0] == '\0')
 			return;
 		if (!CUdpSocket::ParseIPv4(gMultiplayerConfig.connectIp, gMultiplayerConfig.port, gServerAddr))
@@ -531,6 +728,7 @@ EnsureStartedIfNeeded()
 		gNextHelloMs = 0;
 		gStarted = true;
 		return;
+#endif
 	}
 }
 
@@ -556,6 +754,14 @@ MultiplayerHandlePreInitCommandLine(const char *arg)
 		return true;
 	}
 
+	if (gAwaitConnectWsValue) {
+		gAwaitConnectWsValue = false;
+		strncpy(gMultiplayerConfig.connectWsUrl, arg, sizeof(gMultiplayerConfig.connectWsUrl) - 1);
+		gMultiplayerConfig.connectWsUrl[sizeof(gMultiplayerConfig.connectWsUrl) - 1] = '\0';
+		gMultiplayerConfig.mode = MP_MODE_CLIENT;
+		return true;
+	}
+
 	if (!strcmp(arg, "--host")) {
 		gMultiplayerConfig.mode = MP_MODE_HOST;
 		return true;
@@ -567,9 +773,29 @@ MultiplayerHandlePreInitCommandLine(const char *arg)
 		return true;
 	}
 
+	if (!strcmp(arg, "--connect-ws") || !strcmp(arg, "--ws")) {
+		gAwaitConnectWsValue = true;
+		gMultiplayerConfig.mode = MP_MODE_CLIENT;
+		return true;
+	}
+
 	if (!strncmp(arg, "--connect=", 10)) {
 		strncpy(gMultiplayerConfig.connectIp, arg + 10, sizeof(gMultiplayerConfig.connectIp) - 1);
 		gMultiplayerConfig.connectIp[sizeof(gMultiplayerConfig.connectIp) - 1] = '\0';
+		gMultiplayerConfig.mode = MP_MODE_CLIENT;
+		return true;
+	}
+
+	if (!strncmp(arg, "--connect-ws=", 13)) {
+		strncpy(gMultiplayerConfig.connectWsUrl, arg + 13, sizeof(gMultiplayerConfig.connectWsUrl) - 1);
+		gMultiplayerConfig.connectWsUrl[sizeof(gMultiplayerConfig.connectWsUrl) - 1] = '\0';
+		gMultiplayerConfig.mode = MP_MODE_CLIENT;
+		return true;
+	}
+
+	if (!strncmp(arg, "--ws=", 5)) {
+		strncpy(gMultiplayerConfig.connectWsUrl, arg + 5, sizeof(gMultiplayerConfig.connectWsUrl) - 1);
+		gMultiplayerConfig.connectWsUrl[sizeof(gMultiplayerConfig.connectWsUrl) - 1] = '\0';
 		gMultiplayerConfig.mode = MP_MODE_CLIENT;
 		return true;
 	}
@@ -596,8 +822,12 @@ MultiplayerUpdate()
 		return;
 
 	EnsureStartedIfNeeded();
-	if (!gStarted || !gSocket.IsOpen())
+	if (!gStarted)
 		return;
+#ifndef __EMSCRIPTEN__
+	if (!gSocket.IsOpen())
+		return;
+#endif
 
 	CPed *player = FindPlayerPed();
 	if (!player)
@@ -609,6 +839,28 @@ MultiplayerUpdate()
 
 	PumpNetwork(nowMs);
 
+#ifdef __EMSCRIPTEN__
+	if (!gWs || !gWsOpen)
+		return;
+
+	if (gLocalId != 0) {
+		if (gNextStateMs == 0 || nowMs >= gNextStateMs) {
+			uint8 buf[64];
+			uint8 *p = buf;
+			uint16 size = 16 + 16;
+			WriteHeader(p, NETMSG_STATE, size, gLocalId);
+			WriteF32(p, pos.x);
+			WriteF32(p, pos.y);
+			WriteF32(p, pos.z);
+			WriteF32(p, heading);
+			emscripten_websocket_send_binary(gWs, buf, size);
+			gNextStateMs = nowMs + 50;
+		}
+	}
+	return;
+#endif
+
+#ifndef __EMSCRIPTEN__
 	if (gIsHost) {
 		// Timeout clients
 		for (int32 i = 0; i < MAX_CLIENTS; i++) {
@@ -630,5 +882,6 @@ MultiplayerUpdate()
 				SendStateToHost(nowMs, pos, heading);
 		}
 	}
+#endif
 }
 

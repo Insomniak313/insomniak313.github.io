@@ -5,6 +5,7 @@
 #include "Game.h"
 #endif
 #include "Frontend.h"
+#include "Font.h"
 #include "Messages.h"
 #include "Text.h"
 #include "Timer.h"
@@ -12,6 +13,38 @@
 wchar WideErrorString[25];
 
 CText TheText;
+
+static wchar*
+GetFallbackText(const char *key)
+{
+	// Menu additions in this fork: keep keys <= 7 chars (struct fields are [8]).
+	// We provide a tiny fallback dictionary so we don't need to rebuild binary GXT files.
+	static wchar out[64];
+
+	if (!strcmp(key, "MP_HOST")) {
+		switch (FrontEndMenuManager.m_PrefsLanguage) {
+		case CMenuManager::LANGUAGE_FRENCH:   AsciiToUnicode("Heberger", out); break;
+		case CMenuManager::LANGUAGE_GERMAN:   AsciiToUnicode("Host", out); break;
+		case CMenuManager::LANGUAGE_ITALIAN:  AsciiToUnicode("Host", out); break;
+		case CMenuManager::LANGUAGE_SPANISH:  AsciiToUnicode("Host", out); break;
+		default:                              AsciiToUnicode("Host", out); break;
+		}
+		return out;
+	}
+
+	if (!strcmp(key, "MP_JOIN")) {
+		switch (FrontEndMenuManager.m_PrefsLanguage) {
+		case CMenuManager::LANGUAGE_FRENCH:   AsciiToUnicode("Rejoindre", out); break;
+		case CMenuManager::LANGUAGE_GERMAN:   AsciiToUnicode("Join", out); break;
+		case CMenuManager::LANGUAGE_ITALIAN:  AsciiToUnicode("Join", out); break;
+		case CMenuManager::LANGUAGE_SPANISH:  AsciiToUnicode("Join", out); break;
+		default:                              AsciiToUnicode("Join", out); break;
+		}
+		return out;
+	}
+
+	return nil;
+}
 
 CText::CText(void)
 {
@@ -122,6 +155,12 @@ CText::Get(const char *key)
 #else
 	wchar *outstr = keyArray.Search(key, &result);
 #endif
+
+	if (!result) {
+		wchar *fallback = GetFallbackText(key);
+		if (fallback)
+			return fallback;
+	}
 
 	if (!result && bHasMissionTextOffsets && bIsMissionTextLoaded)
 #if defined (FIX_BUGS) || defined(FIX_BUGS_64)
