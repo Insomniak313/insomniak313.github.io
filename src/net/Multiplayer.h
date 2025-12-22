@@ -16,12 +16,14 @@ struct MultiplayerConfig
 	eMultiplayerMode mode;
 	uint16 port;
 	char connectIp[64];
+	char connectWsUrl[256]; // WASM/WebSocket. If empty, use current origin + WS_PATH.
 
 	MultiplayerConfig()
 	{
 		mode = MP_MODE_NONE;
 		port = 7777;
 		connectIp[0] = '\0';
+		connectWsUrl[0] = '\0';
 	}
 };
 
