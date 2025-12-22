@@ -1,0 +1,25 @@
+{
+  "name": "revc-wasm-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "node --watch --enable-source-maps dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --enable-source-maps dist/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.17.12",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.2"
+  }
+}
+
