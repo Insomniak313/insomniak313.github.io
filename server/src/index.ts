@@ -281,6 +281,15 @@ function startServer(cfg: ServerConfig): void {
   const app = express();
   app.disable("x-powered-by");
 
+  // WASM (Emscripten) est plus fiable avec cross-origin isolation + bons MIME types.
+  // - COOP/COEP: requis pour SharedArrayBuffer (threads), et sans impact pour un build single-thread.
+  // - Content-Type .wasm: permet WebAssembly.instantiateStreaming (perf + compat).
+  app.use((_req, res, next) => {
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+    next();
+  });
+
   app.get("/healthz", (_req, res) => {
     res.json({
       ok: true,
@@ -292,7 +301,26 @@ function startServer(cfg: ServerConfig): void {
     });
   });
 
-  app.use("/", express.static(cfg.staticDir, { fallthrough: true, maxAge: "1h", etag: true, immutable: false }));
+  app.use(
+    "/",
+    express.static(cfg.staticDir, {
+      fallthrough: true,
+      maxAge: "1h",
+      etag: true,
+      immutable: false,
+      setHeaders: (res, filePath) => {
+        // Certains environnements ne servent pas .wasm correctement par défaut.
+        if (filePath.endsWith(".wasm")) {
+          res.setHeader("Content-Type", "application/wasm");
+        }
+
+        // Fichier packager Emscripten: binaire opaque, mais mieux vaut être explicite.
+        if (filePath.endsWith(".data")) {
+          res.setHeader("Content-Type", "application/octet-stream");
+        }
+      },
+    })
+  );
 
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: cfg.wsPath, perMessageDeflate: false });
