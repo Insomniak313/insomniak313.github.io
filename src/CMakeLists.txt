@@ -1,5 +1,7 @@
-find_package(Threads REQUIRED)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
+if(NOT EMSCRIPTEN)
+    find_package(Threads REQUIRED)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+endif()
 
 file(GLOB_RECURSE ${PROJECT}_SOURCES "*.cpp" "*.h" "*.rc")
 
@@ -32,8 +34,11 @@ add_executable(${EXECUTABLE} WIN32
 
 target_link_libraries(${EXECUTABLE} PRIVATE
     librw::librw
-    Threads::Threads
 )
+
+if(NOT EMSCRIPTEN)
+    target_link_libraries(${EXECUTABLE} PRIVATE Threads::Threads)
+endif()
 
 if(EMSCRIPTEN)
     set(REVC_WASM_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/server/public/game" CACHE PATH "Output directory for WASM build artifacts (index.html/.js/.wasm/.data)")
@@ -49,6 +54,9 @@ if(EMSCRIPTEN)
         "SHELL:-lwebsocket.js"
         "SHELL:-sALLOW_MEMORY_GROWTH=1"
         "SHELL:-sFORCE_FILESYSTEM=1"
+        # Force un build mono-thread (GitHub Pages ne peut pas servir COOP/COEP).
+        "SHELL:-sUSE_PTHREADS=0"
+        "SHELL:-sPTHREAD_POOL_SIZE=0"
         "SHELL:--shell-file=${PROJECT_SOURCE_DIR}/server/public/wasm-shell.html"
         "SHELL:--preload-file"
         "SHELL:${PROJECT_SOURCE_DIR}/gamefiles@/gamefiles"
