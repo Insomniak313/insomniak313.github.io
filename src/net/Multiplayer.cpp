@@ -14,6 +14,7 @@
 #include "Timer.h"
 #include "World.h"
 #include "Ped.h"
+#include "PlayerPed.h"
 #include "Streaming.h"
 #include "ModelIndices.h"
 #include "General.h"

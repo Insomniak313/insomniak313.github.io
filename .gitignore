@@ -361,3 +361,10 @@ codewarrior/Release/
 codewarrior/Debug/
 
 src/extras/GitSHA1.cpp
+
+# WASM (Emscripten) local tooling / outputs
+.emsdk/
+build-wasm/
+
+# WASM build artifacts served by Node server
+# (volontairement non ignorés: le build doit être inclus dans la PR)

@@ -17,6 +17,16 @@ Par défaut :
 - **WebSocket**: `/ws`
 - **Static**: `server/public/` (copie ici ton build wasm : `index.html`, `.js`, `.wasm`, assets, etc.)
 
+Astuce (build WASM automatisé) :
+
+```bash
+./scripts/setup-emsdk.sh
+source ./.emsdk/emsdk_env.sh
+./scripts/build-wasm.sh
+```
+
+Le build est généré directement dans `server/public/game/` (fichiers `index.html`, `index.js`, `index.wasm`, `index.data`).
+
 Pages utiles :
 - `GET /healthz` : métriques serveur (joueurs, cellules, tick, etc.)
 - `GET /stats.html` : page “statistiques + lancement WASM” (le jeu est attendu par défaut dans `/game/`)
