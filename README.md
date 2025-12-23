@@ -5,8 +5,11 @@
 
 ## Jouer (WASM)
 
-- En ligne (GitHub Pages): [`https://insomniak313.github.io/stats.html`](https://insomniak313.github.io/stats.html)
+- En ligne (GitHub Pages): ouvre `.../stats.html` (le workflow publie `server/public/`)
+  - **Project Pages** (le plus courant): `https://<user>.github.io/<repo>/stats.html`
+  - **User Pages** (repo `<user>.github.io`): `https://<user>.github.io/stats.html`
 - (Note: sur Pages, la partie “stats” sera OFFLINE tant qu’aucun serveur `/healthz` n’est déployé, mais le jeu WASM se lance.)
+- (Important: GitHub Pages ne permet pas de configurer facilement les headers **COOP/COEP**. Si ton build WASM utilise des **threads** (SharedArrayBuffer/pthreads), il ne démarrera pas sur Pages — utilise un build sans pthreads ou héberge derrière un serveur qui sert COOP/COEP.)
 - Si tu veux le mode multijoueur / stats en local: `server/README.md` puis ouvre `http://localhost:8080/stats.html`
 
 ## Intro
