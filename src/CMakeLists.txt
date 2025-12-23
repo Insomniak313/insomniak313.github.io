@@ -49,6 +49,7 @@ if(EMSCRIPTEN)
         "SHELL:-lwebsocket.js"
         "SHELL:-sALLOW_MEMORY_GROWTH=1"
         "SHELL:-sFORCE_FILESYSTEM=1"
+        "SHELL:--shell-file=${PROJECT_SOURCE_DIR}/server/public/wasm-shell.html"
         "SHELL:--preload-file"
         "SHELL:${PROJECT_SOURCE_DIR}/gamefiles@/gamefiles"
     )
