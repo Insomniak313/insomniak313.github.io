@@ -5,7 +5,7 @@
 
 ## Jouer (WASM)
 
-- En ligne (GitHub Pages): [`https://insomniak313.github.io/reVC-multiplayer/stats.html`](https://insomniak313.github.io/reVC-multiplayer/stats.html)
+- En ligne (GitHub Pages): [`https://insomniak313.github.io/stats.html`](https://insomniak313.github.io/stats.html)
 - (Note: sur Pages, la partie “stats” sera OFFLINE tant qu’aucun serveur `/healthz` n’est déployé, mais le jeu WASM se lance.)
 - Si tu veux le mode multijoueur / stats en local: `server/README.md` puis ouvre `http://localhost:8080/stats.html`
 
