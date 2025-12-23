@@ -131,7 +131,8 @@
       const elFrame = document.getElementById("gameFrame");
 
       const qs = new URLSearchParams(window.location.search);
-      const initialGameUrl = qs.get("game") ?? "/game/";
+      // Chemin relatif pour fonctionner aussi bien en local (/) que sur GitHub Pages (/repo/).
+      const initialGameUrl = qs.get("game") ?? "./game/";
       elGameUrl.value = initialGameUrl;
 
       function computeWsUrl() {
@@ -149,7 +150,8 @@
 
       async function refresh() {
         try {
-          const res = await fetch("/healthz", { cache: "no-store" });
+          // Relatif pour supporter un déploiement sous un sous-chemin (ex: GitHub Pages).
+          const res = await fetch("./healthz", { cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const json = await res.json();
           setStatus(true, "OK");
@@ -164,7 +166,7 @@
 
       function normalizeGameUrl(url) {
         const u = (url || "").trim();
-        if (!u) return "/game/";
+        if (!u) return "./game/";
         return u.endsWith("/") ? u : `${u}/`;
       }
 
