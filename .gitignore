@@ -367,5 +367,4 @@ src/extras/GitSHA1.cpp
 build-wasm/
 
 # WASM build artifacts served by Node server
-server/public/game/*
-!server/public/game/.gitkeep
+# (volontairement non ignorés: le build doit être inclus dans la PR)
