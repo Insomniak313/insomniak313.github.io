@@ -14,7 +14,9 @@ DWORD _dwOperatingSystemVersion;
 long _dwOperatingSystemVersion;
 #ifndef __SWITCH__
 #ifndef __APPLE__
+#ifndef __EMSCRIPTEN__
 #include <sys/sysinfo.h>
+#endif
 #else
 #include <mach/mach_host.h>
 #include <sys/sysctl.h>
@@ -555,6 +557,9 @@ psInitialize(void)
 #elif defined (__SWITCH__)
 	svcGetInfo(&_dwMemAvailPhys, InfoType_UsedMemorySize, CUR_PROCESS_HANDLE, 0);
 	debug("Physical memory size %llu\n", _dwMemAvailPhys);
+#elif defined (__EMSCRIPTEN__)
+	_dwMemAvailPhys = 0;
+	debug("Physical memory size (emscripten) %u\n", (unsigned)_dwMemAvailPhys);
 #else
 #ifndef __APPLE__
  	struct sysinfo systemInfo;
@@ -974,6 +979,7 @@ void _InputInitialiseJoys()
 	PSGLOBAL(joy1id) = -1;
 	PSGLOBAL(joy2id) = -1;
 
+#ifndef __EMSCRIPTEN__
 	// Load our gamepad mappings.
 #define SDL_GAMEPAD_DB_PATH "gamecontrollerdb.txt"
 	FILE *f = fopen(SDL_GAMEPAD_DB_PATH, "rb");
@@ -1003,6 +1009,7 @@ void _InputInitialiseJoys()
 	if (EnvControlConfig != nil) {
 		glfwUpdateGamepadMappings(EnvControlConfig);
 	}
+#endif // !__EMSCRIPTEN__
 
 	for (int i = 0; i <= GLFW_JOYSTICK_LAST; i++) {
 		if (glfwJoystickPresent(i) && !IsThisJoystickBlacklisted(i)) {
@@ -2503,7 +2510,11 @@ void CapturePad(RwInt32 padID)
 	ControlsManager.m_NewState.buttons = (uint8*)buttons;
 	ControlsManager.m_NewState.numButtons = numButtons;
 	ControlsManager.m_NewState.id = glfwPad;
+#ifdef __EMSCRIPTEN__
+	ControlsManager.m_NewState.isGamepad = false;
+#else
 	ControlsManager.m_NewState.isGamepad = glfwGetGamepadState(glfwPad, &gamepadState);
+#endif
 	if (ControlsManager.m_NewState.isGamepad) {
 		memcpy(&ControlsManager.m_NewState.mappedButtons, gamepadState.buttons, sizeof(gamepadState.buttons));
 		float lt = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER], rt = gamepadState.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];

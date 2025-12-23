@@ -3,6 +3,12 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 file(GLOB_RECURSE ${PROJECT}_SOURCES "*.cpp" "*.h" "*.rc")
 
+if(EMSCRIPTEN OR ${PROJECT}_AUDIO STREQUAL "NULL")
+    # EAX/DirectSound est Windows-only. En build WASM / audio NULL, on enlève le source
+    # qui inclut <dsound.h>.
+    list(REMOVE_ITEM ${PROJECT}_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/audio/eax/eax-util.cpp")
+endif()
+
 function(header_directories RETURN_LIST)
     file(GLOB_RECURSE ALL_SRCS *.h *.cpp *.c)
     set(RELDIRS)
@@ -28,6 +34,25 @@ target_link_libraries(${EXECUTABLE} PRIVATE
     librw::librw
     Threads::Threads
 )
+
+if(EMSCRIPTEN)
+    set(REVC_WASM_OUTPUT_DIR "${PROJECT_SOURCE_DIR}/server/public/game" CACHE PATH "Output directory for WASM build artifacts (index.html/.js/.wasm/.data)")
+    set_target_properties(${EXECUTABLE}
+        PROPERTIES
+            OUTPUT_NAME "index"
+            SUFFIX ".html"
+            RUNTIME_OUTPUT_DIRECTORY "${REVC_WASM_OUTPUT_DIR}"
+    )
+
+    # Web targets: websocket multiplayer + filesystem packaging.
+    target_link_options(${EXECUTABLE} PRIVATE
+        "SHELL:-lwebsocket.js"
+        "SHELL:-sALLOW_MEMORY_GROWTH=1"
+        "SHELL:-sFORCE_FILESYSTEM=1"
+        "SHELL:--preload-file"
+        "SHELL:${PROJECT_SOURCE_DIR}/gamefiles@/gamefiles"
+    )
+endif()
 
 target_include_directories(${EXECUTABLE}
     PRIVATE
@@ -66,12 +91,16 @@ elseif(${PROJECT}_AUDIO STREQUAL "MSS")
     find_package(MilesSDK REQUIRED)
     target_compile_definitions(${EXECUTABLE} PRIVATE AUDIO_MSS)
     target_link_libraries(${EXECUTABLE} PRIVATE MilesSDK::MilesSDK)
+elseif(${PROJECT}_AUDIO STREQUAL "NULL")
+    # Pas de backend audio (utile pour WASM / builds minimaux).
 endif()
 
-find_package(mpg123 REQUIRED)
-target_link_libraries(${EXECUTABLE} PRIVATE
-    MPG123::libmpg123
-)
+if(NOT EMSCRIPTEN)
+    find_package(mpg123 REQUIRED)
+    target_link_libraries(${EXECUTABLE} PRIVATE
+        MPG123::libmpg123
+    )
+endif()
 if(${PROJECT}_WITH_OPUS)
     find_package(opusfile REQUIRED)
     target_link_libraries(${EXECUTABLE} PRIVATE
@@ -130,7 +159,7 @@ else()
     set(${PROJECT}_C_CXX_EXTENSIONS OFF)
 endif()
 
-if(LIBRW_PLATFORM_GL3 AND LIBRW_GL3_GFXLIB STREQUAL "GLFW")
+if(LIBRW_PLATFORM_GL3 AND LIBRW_GL3_GFXLIB STREQUAL "GLFW" AND NOT EMSCRIPTEN)
 	include(CheckSymbolExists)
 
 	set(CMAKE_REQUIRED_LIBRARIES glfw)
