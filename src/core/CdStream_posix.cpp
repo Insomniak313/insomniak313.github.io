@@ -15,6 +15,7 @@
 #include <sys/resource.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <string.h>
 
 #ifdef __linux__
 #include <sys/syscall.h>
@@ -200,12 +201,20 @@ CdStreamInit(int32 numChannels)
 {
 	struct statvfs fsInfo;
 
+#ifdef __EMSCRIPTEN__
+	// Emscripten ne supporte pas forcément statvfs (ENOSYS) et, de toute façon,
+	// on est sur un FS virtuel. On utilise un "block size" raisonnable pour
+	// l'alignement des buffers de streaming.
+	memset(&fsInfo, 0, sizeof(fsInfo));
+	fsInfo.f_bsize = 4096;
+#else
 	if((statvfs("models/gta3.img", &fsInfo)) < 0)
 	{
 		CDTRACE("can't get filesystem info");
 		ASSERT(0);
 		return;
 	}
+#endif
 #ifdef __linux__
 	_gdwCdStreamFlags = O_RDONLY | O_NOATIME;
 #else

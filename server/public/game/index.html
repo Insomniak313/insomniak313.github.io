@@ -278,6 +278,43 @@
       var Module = {
         locateFile: (path) => new URL(path, GAME_BASE_URL).toString(),
         canvas: canvasElement,
+        preRun: [
+          () => {
+            // Les assets sont préchargés sous /gamefiles (voir --preload-file).
+            // Beaucoup de chemins du jeu sont relatifs (models/neo/TEXT) et certains
+            // peuvent être absolus (/TEXT) ou utiliser des backslashes (\TEXT\).
+            // On se place donc dans /gamefiles et on crée des symlinks de compat.
+            if (typeof FS === "undefined") return;
+            try {
+              const hasGamefiles = FS.analyzePath("/gamefiles")?.exists;
+              if (!hasGamefiles) return;
+
+              try {
+                FS.chdir("/gamefiles");
+              } catch (e) {
+                // ignore
+              }
+
+              const maybeLink = (target, linkPath) => {
+                try {
+                  if (FS.analyzePath(linkPath)?.exists) return;
+                  if (!FS.analyzePath(target)?.exists) return;
+                  FS.symlink(target, linkPath);
+                } catch (e) {
+                  // ignore
+                }
+              };
+
+              maybeLink("/gamefiles/models", "/models");
+              maybeLink("/gamefiles/neo", "/neo");
+              maybeLink("/gamefiles/TEXT", "/TEXT");
+              maybeLink("/gamefiles/TEXT", "/text");
+              maybeLink("/gamefiles/data", "/data");
+            } catch (e) {
+              // ignore
+            }
+          },
+        ],
         print: (...args) => {
           const line = args.join(" ");
           console.log(...args);
