@@ -254,6 +254,17 @@
         statusElement.textContent = text || "";
       }
 
+      function showPanel() {
+        panelElement.classList.remove("hidden");
+      }
+
+      let hasHiddenPanel = false;
+      function hidePanelOnce() {
+        if (hasHiddenPanel) return;
+        hasHiddenPanel = true;
+        panelElement.classList.add("hidden");
+      }
+
       // Module est utilisé par le runtime Emscripten.
       // eslint-disable-next-line no-var
       var Module = {
@@ -294,16 +305,36 @@
           if (left) {
             Module.setStatus(`Préparation… (${Module.totalDependencies - left}/${Module.totalDependencies})`);
           } else {
-            Module.setStatus("Prêt.");
             progressElement.value = 100;
-            panelElement.classList.add("hidden");
+            // Important: ne pas masquer le panneau ici.
+            // Si le runtime abort juste après (WebGL/JS), on éviter un écran noir “silencieux”.
+            Module.setStatus("Démarrage…");
           }
         },
+        onAbort: (what) => {
+          showPanel();
+          Module.setStatus("Erreur au démarrage (abort)");
+          appendLog("[abort] " + (what ? String(what) : "unknown"));
+        },
+        // Si le runtime démarre vraiment, postRun s’exécute (contrairement à monitorRunDependencies).
+        postRun: [
+          () => {
+            Module.setStatus("Prêt.");
+            requestAnimationFrame(() => hidePanelOnce());
+          },
+        ],
       };
 
       window.addEventListener("error", (e) => {
+        showPanel();
         Module.setStatus("Exception (voir console)");
         appendLog("[window.onerror] " + (e?.message || String(e)));
+      });
+
+      window.addEventListener("unhandledrejection", (e) => {
+        showPanel();
+        Module.setStatus("Promise rejetée (voir console)");
+        appendLog("[unhandledrejection] " + (e?.reason ? String(e.reason) : "unknown"));
       });
 
       // Empêche la perte de contexte WebGL de casser silencieusement.
@@ -311,6 +342,8 @@
         "webglcontextlost",
         (e) => {
           e.preventDefault();
+          showPanel();
+          Module.setStatus("Contexte WebGL perdu");
           alert("Contexte WebGL perdu. Recharge la page.");
         },
         false
