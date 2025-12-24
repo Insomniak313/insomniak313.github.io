@@ -20,6 +20,10 @@ EOF
   exit 1
 fi
 
+echo "ℹ️  gta3.img sera téléchargé automatiquement depuis Vercel Blob au runtime"
+echo "   Pas besoin de l'avoir localement pour le build !"
+echo ""
+
 cmake -E make_directory "${OUT_DIR}"
 
 emcmake cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
