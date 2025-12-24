@@ -1,0 +1,17 @@
+# Fichiers de données originaux de GTA Vice City
+# Ces fichiers doivent être importés depuis votre installation légale du jeu
+
+# Fichiers de définition
+default.dat
+default.ide
+*.ide
+*.ipl
+*.zon
+*.dat
+
+# Exceptions : fichiers fournis par reVC
+!freeroam_miami.scm
+
+# Sauvegardes
+*.bak
+*.tmp

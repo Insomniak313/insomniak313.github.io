@@ -45,6 +45,39 @@ This repository includes a small Node.js server for **WASM distribution** (HTTP 
 - **Stats + launch page**: `server/public/stats.html` (served as `/stats.html`)
   - Put your WASM build into `server/public/game/` (e.g. `index.html`, `.js`, `.wasm`, assets) then open `http://localhost:8080/stats.html`
 
+### WASM Build - Import des assets requis
+
+⚠️ **IMPORTANT**: Avant de builder WASM, vous devez importer le fichier `gta3.img` depuis votre installation de GTA Vice City.
+
+**Option 1 - Import automatique (recommandé):**
+```bash
+./scripts/import-assets.sh "/chemin/vers/GTA Vice City"
+```
+
+**Option 2 - Téléchargement manuel:**
+```bash
+./scripts/download-assets.sh
+# Suivre les instructions à l'écran
+```
+
+**Option 3 - Copie manuelle:**
+```bash
+# Copier gta3.img depuis votre installation GTA VC
+cp "/chemin/vers/GTA Vice City/models/gta3.img" ./gamefiles/models/
+```
+
+**Vérification des assets:**
+```bash
+./scripts/verify-assets.sh
+```
+
+**Build WASM:**
+```bash
+./scripts/build-wasm.sh
+```
+
+📖 Pour plus de détails, consultez: [`gamefiles/models/README.md`](gamefiles/models/README.md)
+
 ## Screenshots
 
 ![screen_ 1613087332](https://user-images.githubusercontent.com/1521437/107714111-f84f3200-6ccc-11eb-902e-d757481d579a.png)
