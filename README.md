@@ -54,13 +54,19 @@ This repository includes a small Node.js server for **WASM distribution** (HTTP 
 ./scripts/import-assets.sh "/chemin/vers/GTA Vice City"
 ```
 
-**Option 2 - Téléchargement manuel:**
+**Option 2 - Téléchargement guidé depuis Liberty City:**
+```bash
+./scripts/download-libertycity.sh
+# Script interactif qui vous guide pas à pas
+```
+
+**Option 3 - Téléchargement depuis une URL personnalisée:**
 ```bash
 ./scripts/download-assets.sh
 # Suivre les instructions à l'écran
 ```
 
-**Option 3 - Copie manuelle:**
+**Option 4 - Copie manuelle:**
 ```bash
 # Copier gta3.img depuis votre installation GTA VC
 cp "/chemin/vers/GTA Vice City/models/gta3.img" ./gamefiles/models/
