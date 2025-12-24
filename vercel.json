@@ -1,0 +1,27 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/server/public/stats.html" },
+    { "source": "/stats.html", "destination": "/server/public/stats.html" },
+    { "source": "/wasm-shell.html", "destination": "/server/public/wasm-shell.html" },
+    { "source": "/game", "destination": "/server/public/game/index.html" },
+    { "source": "/game/", "destination": "/server/public/game/index.html" },
+    { "source": "/game/:path*", "destination": "/server/public/game/:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
+    },
+    {
+      "source": "/game/(.*)\\.wasm",
+      "headers": [{ "key": "Content-Type", "value": "application/wasm" }]
+    },
+    {
+      "source": "/game/(.*)\\.data",
+      "headers": [{ "key": "Content-Type", "value": "application/octet-stream" }]
+    }
+  ]
+}
