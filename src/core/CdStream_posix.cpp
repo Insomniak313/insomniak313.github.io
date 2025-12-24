@@ -2,17 +2,23 @@
 #include "common.h"
 #ifdef GTA_PC
 #include "crossplatform.h"
+#ifndef __EMSCRIPTEN__
 #include <signal.h>
 #include <pthread.h>
 #include <semaphore.h>
+#endif
 #include <sys/types.h>
 #include <unistd.h>
+#ifndef __EMSCRIPTEN__
 #include <sys/time.h>
 #include <sys/statvfs.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifndef __EMSCRIPTEN__
 #include <sys/resource.h>
+#endif
 #include <stdarg.h>
 #include <limits.h>
 #include <string.h>
@@ -30,6 +36,8 @@
 #ifdef FLUSHABLE_STREAMING
 bool flushStream[MAX_CDCHANNELS];
 #endif
+
+#ifndef __EMSCRIPTEN__
 
 #ifdef USE_UNNAMED_SEM
 
@@ -82,6 +90,275 @@ re3_sem_close(sem_t* sem, const char* format, ...)
 }
 
 #endif
+
+#endif // !__EMSCRIPTEN__
+
+// =============================================================================
+// EMSCRIPTEN SYNCHRONOUS IMPLEMENTATION (NO THREADS)
+// =============================================================================
+#ifdef __EMSCRIPTEN__
+
+struct CdReadInfo
+{
+	uint32 nSectorOffset;
+	uint32 nSectorsToRead;
+	void *pBuffer;
+	bool bLocked;
+	bool bReading;
+	int32 nStatus;
+	int32 hFile;
+};
+
+char gCdImageNames[MAX_CDIMAGES+1][64];
+int32 gNumImages;
+int32 gNumChannels;
+
+int32 gImgFiles[MAX_CDIMAGES]; // -1: error 0:unused otherwise: fd
+char *gImgNames[MAX_CDIMAGES];
+
+CdReadInfo *gpReadInfo;
+
+int32 lastPosnRead;
+
+int _gdwCdStreamFlags;
+
+void
+CdStreamInitThread(void)
+{
+	// No threads in WASM build
+	debug("WASM: CdStream initialized without threads (synchronous mode)\n");
+}
+
+void
+CdStreamInit(int32 numChannels)
+{
+	// Pour WASM, on n'a pas besoin de statvfs, on utilise une taille de bloc standard
+	CDDEBUG("Initializing CdStream (WASM mode)");
+	
+	_gdwCdStreamFlags = O_RDONLY;
+	
+	// Allouer un buffer test pour vérifier l'alignement
+	void *pBuffer = (void *)RwMallocAlign(CDSTREAM_SECTOR_SIZE, 4096);
+	ASSERT( pBuffer != nil );
+
+	gNumImages = 0;
+	gNumChannels = numChannels;
+	ASSERT( gNumChannels != 0 );
+
+	gpReadInfo = (CdReadInfo *)calloc(numChannels, sizeof(CdReadInfo));
+	ASSERT( gpReadInfo != nil );
+
+	CDDEBUG("read info %p", gpReadInfo);
+	
+	// Initialiser les channels
+	for ( int32 i = 0; i < gNumChannels; i++ )
+	{
+		gpReadInfo[i].nSectorOffset = 0;
+		gpReadInfo[i].nSectorsToRead = 0;
+		gpReadInfo[i].pBuffer = nil;
+		gpReadInfo[i].bLocked = false;
+		gpReadInfo[i].bReading = false;
+		gpReadInfo[i].nStatus = STREAM_NONE;
+		gpReadInfo[i].hFile = -1;
+	}
+
+	CdStreamInitThread();
+
+	RwFreeAlign(pBuffer);
+}
+
+uint32
+GetGTA3ImgSize(void)
+{
+	ASSERT( gImgFiles[0] > 0 );
+	struct stat statbuf;
+
+	char path[PATH_MAX];
+	realpath(gImgNames[0], path);
+	if (stat(path, &statbuf) == -1) {
+		// Try case-insensitivity
+		char* real = casepath(gImgNames[0], false);
+		if (real)
+		{
+			realpath(real, path);
+			free(real);
+			if (stat(path, &statbuf) != -1)
+				goto ok;
+		}
+
+		CDTRACE("can't get size of gta3.img");
+		ASSERT(0);
+		return 0;
+	}
+	ok:
+	return (uint32)statbuf.st_size;
+}
+
+void
+CdStreamShutdown(void)
+{
+	if (gpReadInfo)
+		free(gpReadInfo);
+	gpReadInfo = nil;
+}
+
+int32
+CdStreamRead(int32 channel, void *buffer, uint32 offset, uint32 size)
+{
+	ASSERT( channel < gNumChannels );
+	ASSERT( buffer != nil );
+
+	lastPosnRead = size + offset;
+
+	ASSERT( _GET_INDEX(offset) < MAX_CDIMAGES );
+	int32 hImage = gImgFiles[_GET_INDEX(offset)];
+	ASSERT( hImage > 0 );
+
+	CdReadInfo *pChannel = &gpReadInfo[channel];
+	ASSERT( pChannel != nil );
+
+	// En mode synchrone WASM, on lit immédiatement
+	pChannel->hFile = hImage - 1;
+	pChannel->nStatus = STREAM_NONE;
+	pChannel->nSectorOffset = _GET_OFFSET(offset);
+	pChannel->nSectorsToRead = size;
+	pChannel->pBuffer = buffer;
+	pChannel->bLocked = 0;
+	pChannel->bReading = true;
+
+	// Lecture synchrone
+	ASSERT(pChannel->hFile >= 0);
+	ASSERT(pChannel->pBuffer != nil );
+
+	lseek(pChannel->hFile, (size_t)pChannel->nSectorOffset * (size_t)CDSTREAM_SECTOR_SIZE, SEEK_SET);
+	if (read(pChannel->hFile, pChannel->pBuffer, pChannel->nSectorsToRead * CDSTREAM_SECTOR_SIZE) == -1) {
+		pChannel->nStatus = STREAM_ERROR;
+		CDTRACE("Read error on channel %d", channel);
+	} else {
+		pChannel->nStatus = STREAM_SUCCESS;
+	}
+
+	pChannel->nSectorsToRead = 0;
+	pChannel->bReading = false;
+
+	return STREAM_SUCCESS;
+}
+
+int32
+CdStreamGetStatus(int32 channel)
+{
+	ASSERT( channel < gNumChannels );
+	CdReadInfo *pChannel = &gpReadInfo[channel];
+	ASSERT( pChannel != nil );
+
+	if ( pChannel->bReading )
+		return STREAM_READING;
+
+	if ( pChannel->nSectorsToRead != 0 )
+		return STREAM_WAITING;
+
+	if ( pChannel->nStatus != STREAM_NONE )
+	{
+		int32 status = pChannel->nStatus;
+		pChannel->nStatus = STREAM_NONE;
+		return status;
+	}
+
+	return STREAM_NONE;
+}
+
+int32
+CdStreamGetLastPosn(void)
+{
+	return lastPosnRead;
+}
+
+int32
+CdStreamSync(int32 channel)
+{
+	ASSERT( channel < gNumChannels );
+	CdReadInfo *pChannel = &gpReadInfo[channel];
+	ASSERT( pChannel != nil );
+
+	// En mode synchrone, la lecture est déjà terminée
+	return pChannel->nStatus;
+}
+
+bool
+CdStreamAddImage(char const *path)
+{
+	ASSERT(path != nil);
+	ASSERT(gNumImages < MAX_CDIMAGES);
+
+	gImgFiles[gNumImages] = open(path, _gdwCdStreamFlags);
+
+	// Fix case sensitivity and backslashes.
+	if (gImgFiles[gNumImages] == -1) {
+		char* real = casepath(path, false);
+		if (real)
+		{
+			gImgFiles[gNumImages] = open(real, _gdwCdStreamFlags);
+			free(real);
+		}
+	}
+
+	if ( gImgFiles[gNumImages] == -1 ) {
+		CDTRACE("Failed to open image: %s", path);
+		return false;
+	}
+
+	gImgNames[gNumImages] = strdup(path);
+	gImgFiles[gNumImages]++; // because -1: error 0: not used
+
+	strcpy(gCdImageNames[gNumImages], path);
+
+	gNumImages++;
+
+	return true;
+}
+
+char *
+CdStreamGetImageName(int32 cd)
+{
+	ASSERT(cd < MAX_CDIMAGES);
+	if ( gImgFiles[cd] > 0)
+		return gCdImageNames[cd];
+
+	return nil;
+}
+
+void
+CdStreamRemoveImages(void)
+{
+	for ( int32 i = 0; i < gNumChannels; i++ ) {
+		CdStreamSync(i);
+	}
+
+	for ( int32 i = 0; i < gNumImages; i++ )
+	{
+		close(gImgFiles[i] - 1);
+		free(gImgNames[i]);
+		gImgFiles[i] = 0;
+	}
+
+	gNumImages = 0;
+}
+
+int32
+CdStreamGetNumImages(void)
+{
+	return gNumImages;
+}
+
+// =============================================================================
+// END EMSCRIPTEN IMPLEMENTATION
+// =============================================================================
+
+#else // !__EMSCRIPTEN__
+
+// =============================================================================
+// THREADED POSIX IMPLEMENTATION
+// =============================================================================
 
 struct CdReadInfo
 {
@@ -610,5 +887,8 @@ CdStreamGetNumImages(void)
 {
 	return gNumImages;
 }
-#endif
-#endif
+
+#endif // !__EMSCRIPTEN__
+
+#endif // GTA_PC
+#endif // !_WIN32
