@@ -57,9 +57,10 @@ if(EMSCRIPTEN)
         # Force un build mono-thread (GitHub Pages ne peut pas servir COOP/COEP).
         "SHELL:-sUSE_PTHREADS=0"
         "SHELL:-sPTHREAD_POOL_SIZE=0"
+        "SHELL:--use-port=contrib.glfw3"
         "SHELL:--shell-file=${PROJECT_SOURCE_DIR}/server/public/wasm-shell.html"
         "SHELL:--preload-file"
-        "SHELL:${PROJECT_SOURCE_DIR}/gamefiles@/gamefiles"
+        "SHELL:${PROJECT_SOURCE_DIR}/gamefiles@/"
     )
 endif()
 

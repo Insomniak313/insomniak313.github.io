@@ -368,3 +368,6 @@ build-wasm/
 
 # WASM build artifacts served by Node server
 # (volontairement non ignorés: le build doit être inclus dans la PR)
+# GTA Vice City game assets (must be copied from original game)
+gamefiles/**/*.img
+*.IMG
