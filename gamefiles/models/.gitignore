@@ -1,0 +1,22 @@
+# Assets originaux de GTA Vice City - NE PAS COMMITER
+# Ces fichiers sont protégés par le droit d'auteur de Rockstar Games
+
+# Fichier principal (très volumineux, ~400-700 MB)
+gta3.img
+gta3.dir
+
+# Fichiers de textures additionnels
+txd.img
+txd.dir
+
+# Autres fichiers du jeu original
+*.dff
+*.col
+*.ipl
+*.zon
+*.dat
+
+# Sauvegardes temporaires
+*.bak
+*.tmp
+*.old

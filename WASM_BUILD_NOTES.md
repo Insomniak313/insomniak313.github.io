@@ -28,7 +28,20 @@ source .emsdk/emsdk_env.sh
 # 2. Initialiser les sous-modules Git (une seule fois)
 git submodule update --init --recursive
 
-# 3. Builder le projet WASM
+# 3. Importer les assets GTA Vice City (OBLIGATOIRE)
+# Option A - Import automatique depuis votre installation GTA VC
+./scripts/import-assets.sh "/chemin/vers/GTA Vice City"
+
+# Option B - Téléchargement manuel
+./scripts/download-assets.sh
+
+# Option C - Copie manuelle
+cp "/chemin/vers/GTA Vice City/models/gta3.img" ./gamefiles/models/
+
+# Vérifier que les assets sont présents
+./scripts/verify-assets.sh
+
+# 4. Builder le projet WASM
 ./scripts/build-wasm.sh
 ```
 
