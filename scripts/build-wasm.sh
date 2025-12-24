@@ -20,29 +20,8 @@ EOF
   exit 1
 fi
 
-# Vérifier si gta3.img existe, sinon le télécharger automatiquement
-GTA3_IMG="${ROOT_DIR}/gamefiles/models/gta3.img"
-if [ ! -f "${GTA3_IMG}" ]; then
-  echo "⚠️  gta3.img n'est pas présent dans gamefiles/models/"
-  echo "📥 Téléchargement automatique depuis Vercel Blob..."
-  echo ""
-  
-  if [ -x "${ROOT_DIR}/scripts/download-gta3-blob.sh" ]; then
-    "${ROOT_DIR}/scripts/download-gta3-blob.sh"
-  else
-    echo "❌ Erreur: le script download-gta3-blob.sh n'est pas exécutable"
-    exit 1
-  fi
-  
-  # Vérifier à nouveau si le téléchargement a réussi
-  if [ ! -f "${GTA3_IMG}" ]; then
-    echo "❌ Erreur: gta3.img n'a pas pu être téléchargé"
-    exit 1
-  fi
-  echo ""
-fi
-
-echo "✓ gta3.img est présent ($(du -h "${GTA3_IMG}" | cut -f1))"
+echo "ℹ️  gta3.img sera téléchargé automatiquement depuis Vercel Blob au runtime"
+echo "   Pas besoin de l'avoir localement pour le build !"
 echo ""
 
 cmake -E make_directory "${OUT_DIR}"

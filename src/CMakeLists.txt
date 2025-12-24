@@ -59,8 +59,10 @@ if(EMSCRIPTEN)
         "SHELL:-sPTHREAD_POOL_SIZE=0"
         "SHELL:--use-port=contrib.glfw3"
         "SHELL:--shell-file=${PROJECT_SOURCE_DIR}/server/public/wasm-shell.html"
+        # On précharge tous les fichiers SAUF gta3.img qui sera téléchargé depuis le blob Vercel
         "SHELL:--preload-file"
         "SHELL:${PROJECT_SOURCE_DIR}/gamefiles@/"
+        "SHELL:--exclude-file=*.img"
     )
 endif()
 

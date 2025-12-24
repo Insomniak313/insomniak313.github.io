@@ -5,8 +5,9 @@ Ce guide vous explique comment builder et lancer reVC en version WebAssembly dan
 ## Prérequis
 
 - **Node.js** (v16 ou supérieur)
-- **Une copie légale de GTA Vice City** (pour les assets)
 - **Linux, macOS ou Windows avec WSL/Git Bash**
+
+> 💡 **Plus besoin d'avoir GTA Vice City installé !** Le jeu télécharge automatiquement les assets depuis Vercel Blob.
 
 ## Étapes rapides
 
@@ -25,78 +26,11 @@ source .emsdk/emsdk_env.sh
 git submodule update --init --recursive
 ```
 
-### 3️⃣ Importer les assets GTA Vice City ⚠️ **OBLIGATOIRE**
+### 3️⃣ Builder le projet WASM
 
-#### Option A : Téléchargement automatique depuis Vercel Blob (recommandé) 🚀
+🎮 **Pas besoin d'importer les assets manuellement !**
 
-Le moyen le plus simple et rapide :
-
-```bash
-./scripts/download-gta3-blob.sh
-```
-
-Ce script télécharge automatiquement `gta3.img` depuis notre blob Vercel hébergé (~500 MB).
-
-> 💡 **Note** : Le build WASM (`./scripts/build-wasm.sh`) télécharge automatiquement `gta3.img` s'il est manquant, vous pouvez donc sauter cette étape !
-
-#### Option B : Import depuis votre installation GTA
-
-Si vous avez GTA Vice City installé sur votre machine :
-
-```bash
-./scripts/import-assets.sh "/chemin/vers/votre/GTA Vice City"
-```
-
-**Exemples de chemins courants :**
-
-- **Windows (Steam)** :
-  ```bash
-  ./scripts/import-assets.sh "/c/Program Files (x86)/Steam/steamapps/common/Grand Theft Auto Vice City"
-  ```
-
-- **Linux (Steam)** :
-  ```bash
-  ./scripts/import-assets.sh ~/.steam/steam/steamapps/common/Grand\ Theft\ Auto\ Vice\ City
-  ```
-
-- **Mac (Steam)** :
-  ```bash
-  ./scripts/import-assets.sh ~/Library/Application\ Support/Steam/steamapps/common/Grand\ Theft\ Auto\ Vice\ City
-  ```
-
-#### Option C : Téléchargement manuel depuis une URL
-
-Si vous avez un fichier `gta3.img` téléchargé depuis une source externe :
-
-```bash
-./scripts/download-assets.sh
-```
-
-Le script vous demandera l'URL du fichier à télécharger.
-
-> ⚠️ **Avertissement légal** : Assurez-vous de posséder une copie légale du jeu avant d'utiliser des assets téléchargés.
-
-#### Option D : Copie manuelle
-
-Si vous préférez copier manuellement :
-
-```bash
-cp "/chemin/vers/GTA Vice City/models/gta3.img" ./gamefiles/models/
-```
-
-### 4️⃣ Vérifier les assets
-
-```bash
-./scripts/verify-assets.sh
-```
-
-Vous devriez voir :
-```
-✓ gta3.img (550M) - Présent
-✓ Tous les assets nécessaires sont présents !
-```
-
-### 5️⃣ Builder le projet WASM
+Le jeu télécharge automatiquement `gta3.img` depuis Vercel Blob au premier démarrage dans le navigateur.
 
 ```bash
 ./scripts/build-wasm.sh
@@ -106,22 +40,24 @@ Cette étape prend environ 5-10 minutes. Les fichiers générés sont :
 - `server/public/game/index.html`
 - `server/public/game/index.js`
 - `server/public/game/index.wasm`
-- `server/public/game/index.data` (contient les assets)
+- `server/public/game/index.data` (contient les petits assets, ~20 MB)
 
-### 6️⃣ Installer les dépendances du serveur (première fois uniquement)
+Le fichier `gta3.img` (~500 MB) sera téléchargé automatiquement depuis Vercel Blob au premier lancement.
+
+### 4️⃣ Installer les dépendances du serveur (première fois uniquement)
 
 ```bash
 cd server
 npm install
 ```
 
-### 7️⃣ Compiler le serveur TypeScript
+### 5️⃣ Compiler le serveur TypeScript
 
 ```bash
 npm run build
 ```
 
-### 8️⃣ Lancer le serveur
+### 6️⃣ Lancer le serveur
 
 ```bash
 npm start
@@ -129,7 +65,7 @@ npm start
 
 Le serveur démarre sur **http://localhost:8080**
 
-### 9️⃣ Ouvrir dans le navigateur
+### 7️⃣ Ouvrir dans le navigateur
 
 Ouvrez votre navigateur et accédez à :
 
@@ -166,25 +102,27 @@ Solution :
 source .emsdk/emsdk_env.sh
 ```
 
-### ❌ "gta3.img est MANQUANT (OBLIGATOIRE)"
+### ❌ Erreur de téléchargement de gta3.img
 
-Solution : Vous devez importer les assets du jeu original. Voir étape 3.
+Le jeu télécharge automatiquement `gta3.img` depuis Vercel Blob au premier lancement. Si le téléchargement échoue :
+
+1. Vérifiez votre connexion internet
+2. Vérifiez que l'URL du blob est accessible : https://3px5m57ackbno8gi.public.blob.vercel-storage.com/gta3.img
+3. Consultez les logs dans la console du navigateur (F12)
 
 ### ❌ Le jeu ne se charge pas dans le navigateur
 
 1. Vérifiez que le serveur est bien démarré (`npm start` dans `server/`)
 2. Ouvrez la console du navigateur (F12) pour voir les erreurs
 3. Vérifiez que `index.data` existe dans `server/public/game/`
-4. Vérifiez que les assets ont bien été importés avec `./scripts/verify-assets.sh`
+4. Attendez que le téléchargement de `gta3.img` (~500 MB) soit terminé - cela peut prendre quelques minutes
 
 ### ❌ "Can't open gta3.img"
 
-Le jeu cherche le fichier `gta3.img` mais ne le trouve pas. Vérifiez :
-```bash
-ls -lh gamefiles/models/gta3.img
-```
-
-Si le fichier n'existe pas, retournez à l'étape 3.
+Le jeu n'a pas pu télécharger ou trouver `gta3.img`. Vérifiez :
+1. Ouvrez la console du navigateur (F12) pour voir les logs de téléchargement
+2. Vérifiez que le téléchargement depuis Vercel Blob a réussi
+3. Si le problème persiste, essayez de recharger la page
 
 ### ❌ Le build WASM échoue
 
@@ -212,8 +150,10 @@ npm start
 
 ## Performance
 
-- Le build WASM peut être lent sur les machines modestes
-- Le chargement initial dans le navigateur prend environ 10-30 secondes
+- Le build WASM peut être lent sur les machines modestes (5-10 minutes)
+- Le premier chargement dans le navigateur télécharge `gta3.img` (~500 MB) - cela peut prendre quelques minutes
+- Le fichier est mis en cache, les prochains lancements sont instantanés
+- Le jeu devrait tourner à 30-60 FPS sur un ordinateur moderne
 - Pour de meilleures performances, utilisez Chrome ou Edge (meilleur support WebAssembly)
 
 ## Multijoueur

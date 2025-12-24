@@ -45,49 +45,28 @@ This repository includes a small Node.js server for **WASM distribution** (HTTP 
 - **Stats + launch page**: `server/public/stats.html` (served as `/stats.html`)
   - Put your WASM build into `server/public/game/` (e.g. `index.html`, `.js`, `.wasm`, assets) then open `http://localhost:8080/stats.html`
 
-### WASM Build - Import des assets requis
+### WASM Build
 
-⚠️ **IMPORTANT**: Avant de builder WASM, vous devez importer le fichier `gta3.img`.
+🎮 **Le jeu télécharge automatiquement `gta3.img` depuis Vercel Blob au démarrage !**
 
-**🚀 Option 1 - Téléchargement automatique depuis Vercel Blob (recommandé):**
+Pas besoin d'importer les assets manuellement, tout est géré automatiquement :
+
 ```bash
-./scripts/download-gta3-blob.sh
-```
-Le script télécharge automatiquement `gta3.img` depuis notre blob Vercel hébergé.
+# 1. Setup Emscripten (première fois)
+./scripts/setup-emsdk.sh
+source .emsdk/emsdk_env.sh
 
-**Option 2 - Import depuis votre installation GTA:**
-```bash
-./scripts/import-assets.sh "/chemin/vers/GTA Vice City"
-```
-
-**Option 3 - Téléchargement guidé depuis Liberty City:**
-```bash
-./scripts/download-libertycity.sh
-# Script interactif qui vous guide pas à pas
-```
-
-**Option 4 - Téléchargement depuis une URL personnalisée:**
-```bash
-./scripts/download-assets.sh
-# Suivre les instructions à l'écran
-```
-
-**Option 5 - Copie manuelle:**
-```bash
-# Copier gta3.img depuis votre installation GTA VC
-cp "/chemin/vers/GTA Vice City/models/gta3.img" ./gamefiles/models/
-```
-
-**Vérification des assets:**
-```bash
-./scripts/verify-assets.sh
-```
-
-**Build WASM:**
-```bash
+# 2. Build WASM
 ./scripts/build-wasm.sh
-# Le script télécharge automatiquement gta3.img si absent
 ```
+
+Le fichier `gta3.img` (~500 MB) sera téléchargé automatiquement depuis notre CDN Vercel lors du premier lancement du jeu dans le navigateur.
+
+**✨ Avantages :**
+- Build WASM ultra-léger (~20 MB au lieu de ~500 MB)
+- Pas besoin d'avoir GTA Vice City installé
+- Téléchargement optimisé avec barre de progression
+- Le jeu fonctionne directement après le build
 
 📖 Pour plus de détails, consultez: [`gamefiles/models/README.md`](gamefiles/models/README.md)
 
