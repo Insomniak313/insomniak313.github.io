@@ -47,26 +47,32 @@ This repository includes a small Node.js server for **WASM distribution** (HTTP 
 
 ### WASM Build - Import des assets requis
 
-⚠️ **IMPORTANT**: Avant de builder WASM, vous devez importer le fichier `gta3.img` depuis votre installation de GTA Vice City.
+⚠️ **IMPORTANT**: Avant de builder WASM, vous devez importer le fichier `gta3.img`.
 
-**Option 1 - Import automatique (recommandé):**
+**🚀 Option 1 - Téléchargement automatique depuis Vercel Blob (recommandé):**
+```bash
+./scripts/download-gta3-blob.sh
+```
+Le script télécharge automatiquement `gta3.img` depuis notre blob Vercel hébergé.
+
+**Option 2 - Import depuis votre installation GTA:**
 ```bash
 ./scripts/import-assets.sh "/chemin/vers/GTA Vice City"
 ```
 
-**Option 2 - Téléchargement guidé depuis Liberty City:**
+**Option 3 - Téléchargement guidé depuis Liberty City:**
 ```bash
 ./scripts/download-libertycity.sh
 # Script interactif qui vous guide pas à pas
 ```
 
-**Option 3 - Téléchargement depuis une URL personnalisée:**
+**Option 4 - Téléchargement depuis une URL personnalisée:**
 ```bash
 ./scripts/download-assets.sh
 # Suivre les instructions à l'écran
 ```
 
-**Option 4 - Copie manuelle:**
+**Option 5 - Copie manuelle:**
 ```bash
 # Copier gta3.img depuis votre installation GTA VC
 cp "/chemin/vers/GTA Vice City/models/gta3.img" ./gamefiles/models/
@@ -80,6 +86,7 @@ cp "/chemin/vers/GTA Vice City/models/gta3.img" ./gamefiles/models/
 **Build WASM:**
 ```bash
 ./scripts/build-wasm.sh
+# Le script télécharge automatiquement gta3.img si absent
 ```
 
 📖 Pour plus de détails, consultez: [`gamefiles/models/README.md`](gamefiles/models/README.md)

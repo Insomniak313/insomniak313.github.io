@@ -350,8 +350,19 @@
         },
         onAbort: (what) => {
           showPanel();
-          Module.setStatus("Erreur au démarrage (abort)");
-          appendLog("[abort] " + (what ? String(what) : "unknown"));
+          Module.setStatus("❌ Erreur fatale (abort)");
+          const msg = what ? String(what) : "unknown";
+          appendLog("[ABORT] " + msg);
+          // Capturer la stack trace si disponible
+          if (typeof stackTrace !== 'undefined' && stackTrace) {
+            appendLog(stackTrace());
+          }
+          // Afficher des informations utiles pour le debugging
+          appendLog("\n--- Informations de debugging ---");
+          appendLog("User Agent: " + navigator.userAgent);
+          appendLog("Mémoire JS: " + (performance?.memory ? 
+            `${(performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB / ${(performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(1)}MB` : 
+            "N/A"));
         },
         // Si le runtime démarre vraiment, postRun s’exécute (contrairement à monitorRunDependencies).
         postRun: [
@@ -364,14 +375,23 @@
 
       window.addEventListener("error", (e) => {
         showPanel();
-        Module.setStatus("Exception (voir console)");
-        appendLog("[window.onerror] " + (e?.message || String(e)));
+        Module.setStatus("❌ Crash détecté");
+        const msg = e?.message || String(e);
+        const file = e?.filename ? ` @ ${e.filename}:${e.lineno}:${e.colno}` : '';
+        appendLog(`[CRASH] ${msg}${file}`);
+        if (e?.error?.stack) {
+          appendLog(e.error.stack);
+        }
       });
 
       window.addEventListener("unhandledrejection", (e) => {
         showPanel();
-        Module.setStatus("Promise rejetée (voir console)");
-        appendLog("[unhandledrejection] " + (e?.reason ? String(e.reason) : "unknown"));
+        Module.setStatus("❌ Promise rejetée");
+        const reason = e?.reason;
+        appendLog("[unhandledrejection] " + (reason ? String(reason) : "unknown"));
+        if (reason?.stack) {
+          appendLog(reason.stack);
+        }
       });
 
       // Empêche la perte de contexte WebGL de casser silencieusement.
@@ -380,7 +400,8 @@
         (e) => {
           e.preventDefault();
           showPanel();
-          Module.setStatus("Contexte WebGL perdu");
+          Module.setStatus("❌ Contexte WebGL perdu");
+          appendLog("[WebGL] Contexte perdu - la carte graphique a rencontré un problème");
           alert("Contexte WebGL perdu. Recharge la page.");
         },
         false

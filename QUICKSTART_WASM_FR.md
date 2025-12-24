@@ -27,7 +27,19 @@ git submodule update --init --recursive
 
 ### 3️⃣ Importer les assets GTA Vice City ⚠️ **OBLIGATOIRE**
 
-#### Option A : Import automatique (recommandé)
+#### Option A : Téléchargement automatique depuis Vercel Blob (recommandé) 🚀
+
+Le moyen le plus simple et rapide :
+
+```bash
+./scripts/download-gta3-blob.sh
+```
+
+Ce script télécharge automatiquement `gta3.img` depuis notre blob Vercel hébergé (~500 MB).
+
+> 💡 **Note** : Le build WASM (`./scripts/build-wasm.sh`) télécharge automatiquement `gta3.img` s'il est manquant, vous pouvez donc sauter cette étape !
+
+#### Option B : Import depuis votre installation GTA
 
 Si vous avez GTA Vice City installé sur votre machine :
 
@@ -52,7 +64,7 @@ Si vous avez GTA Vice City installé sur votre machine :
   ./scripts/import-assets.sh ~/Library/Application\ Support/Steam/steamapps/common/Grand\ Theft\ Auto\ Vice\ City
   ```
 
-#### Option B : Téléchargement manuel
+#### Option C : Téléchargement manuel depuis une URL
 
 Si vous avez un fichier `gta3.img` téléchargé depuis une source externe :
 
@@ -64,7 +76,7 @@ Le script vous demandera l'URL du fichier à télécharger.
 
 > ⚠️ **Avertissement légal** : Assurez-vous de posséder une copie légale du jeu avant d'utiliser des assets téléchargés.
 
-#### Option C : Copie manuelle
+#### Option D : Copie manuelle
 
 Si vous préférez copier manuellement :
 
