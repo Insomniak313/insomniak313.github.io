@@ -1,4 +1,7 @@
 {
+  "redirects": [
+    { "source": "/game", "destination": "/game/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/", "destination": "/server/public/stats.html" },
     { "source": "/stats.html", "destination": "/server/public/stats.html" },
