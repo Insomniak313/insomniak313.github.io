@@ -22,22 +22,49 @@ function toU32(n) {
     return n >>> 0;
 }
 function parsePacket(data) {
-    if (data.byteLength < headerLen)
+    if (data.byteLength < headerLen) {
+        console.warn(JSON.stringify({
+            msg: "Paquet trop petit ignoré",
+            receivedBytes: data.byteLength,
+            expectedMinBytes: headerLen,
+        }));
         return null;
+    }
     const view = new DataView(data);
     let offset = 0;
     const magic = view.getUint32(offset, false);
     offset += 4;
-    if (magic !== NET_MAGIC)
+    if (magic !== NET_MAGIC) {
+        console.warn(JSON.stringify({
+            msg: "Magic number invalide",
+            receivedMagic: `0x${magic.toString(16)}`,
+            expectedMagic: `0x${NET_MAGIC.toString(16)}`,
+        }));
         return null;
+    }
     const size = view.getUint16(offset, false);
     offset += 2;
-    if (size < headerLen || size > data.byteLength)
+    if (size < headerLen || size > data.byteLength) {
+        console.warn(JSON.stringify({
+            msg: "Taille de paquet invalide",
+            receivedSize: size,
+            dataByteLength: data.byteLength,
+            minExpected: headerLen,
+        }));
         return null;
+    }
     const version = view.getUint8(offset);
     offset += 1;
-    if (version !== NET_VERSION)
+    if (version !== NET_VERSION) {
+        console.error(JSON.stringify({
+            msg: "VERSION DU PROTOCOLE INCOMPATIBLE - PAQUET REJETÉ",
+            receivedVersion: version,
+            expectedVersion: NET_VERSION,
+            severity: "CRITICAL",
+            hint: "Le client utilise une version différente du protocole réseau",
+        }));
         return null;
+    }
     const type = view.getUint8(offset);
     offset += 1;
     // seq (unused)
@@ -173,8 +200,13 @@ function handleBinaryMessage(ws, data, cfg) {
     if (!parsed)
         return;
     const id = idByWs.get(ws);
-    if (!id)
+    if (!id) {
+        console.warn(JSON.stringify({
+            msg: "Message reçu d'une connexion non identifiée",
+            dataSize: data.byteLength,
+        }));
         return;
+    }
     if (parsed.type === 3 /* MsgType.State */) {
         // payload: x y z heading (f32 x4)
         const view = new DataView(data);
@@ -188,8 +220,13 @@ function handleBinaryMessage(ws, data, cfg) {
         const rh = readF32BE(view, offset);
         offset = rh.offset;
         const c = connectionsById.get(id);
-        if (!c)
+        if (!c) {
+            console.warn(JSON.stringify({
+                msg: "État reçu pour un joueur inexistant",
+                playerId: id,
+            }));
             return;
+        }
         c.x = rx.value;
         c.y = ry.value;
         c.z = rz.value;
@@ -199,13 +236,33 @@ function handleBinaryMessage(ws, data, cfg) {
         if (newCell !== c.cell) {
             moveToCell(id, c.cell, newCell);
             c.cell = newCell;
+            console.log(JSON.stringify({
+                msg: "Joueur a changé de cellule",
+                playerId: id,
+                fromCell: c.cell,
+                toCell: newCell,
+                position: { x: c.x, y: c.y, z: c.z },
+            }));
         }
+    }
+    else {
+        console.log(JSON.stringify({
+            msg: "Message reçu avec succès",
+            playerId: id,
+            messageType: parsed.type,
+            dataSize: data.byteLength,
+        }));
     }
 }
 function onDisconnect(id, cfg) {
     const c = connectionsById.get(id);
-    if (!c)
+    if (!c) {
+        console.warn(JSON.stringify({
+            msg: "Tentative de déconnexion d'un joueur inexistant",
+            playerId: id,
+        }));
         return;
+    }
     const cellSet = grid.get(c.cell);
     if (cellSet) {
         cellSet.delete(id);
@@ -213,6 +270,13 @@ function onDisconnect(id, cfg) {
             grid.delete(c.cell);
     }
     connectionsById.delete(id);
+    console.log(JSON.stringify({
+        msg: "Joueur déconnecté",
+        playerId: id,
+        lastPosition: { x: c.x, y: c.y, z: c.z },
+        cell: c.cell,
+        remainingPlayers: connectionsById.size,
+    }));
     // Notifier "leave" aux voisins proches (best-effort).
     const [cxStr, cyStr] = c.cell.split(",");
     const cx = Number(cxStr);
@@ -289,6 +353,12 @@ function startServer(cfg) {
         ensureGridCell(initialCell).add(id);
         // Welcome binaire
         wsSendBinary(ws, buildWelcome(seq++, id), cfg.maxBufferedAmount);
+        console.log(JSON.stringify({
+            msg: "Nouvelle connexion établie",
+            playerId: id,
+            protocolVersion: NET_VERSION,
+            totalPlayers: connectionsById.size,
+        }));
         ws.on("message", (msg) => {
             if (typeof msg === "string")
                 return;
